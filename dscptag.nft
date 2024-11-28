@@ -31,27 +31,27 @@ table inet dscptag {
     }
 
 
-    set xfst_ack {ct id
+    set xfst_ack {ct id . ct direction
         flags dynamic;
         timeout 5m
     }
-    set fast_ack {ct id
+    set fast_ack {ct id . ct direction
         flags dynamic;
         timeout 5m
     }
-    set med_ack {ct id
+    set med_ack {ct id . ct direction
         flags dynamic;
         timeout 5m
     }
-    set slow_ack {ct id
+    set slow_ack {ct id . ct direction
         flags dynamic;
         timeout 5m
     }
-    set udp_meter {ct id
+    set udp_meter {ct id . ct direction
         flags dynamic;
         timeout 5m
     }
-    set slowtcp {ct id
+    set slowtcp {ct id . ct direction
         flags dynamic;
         timeout 5m
     }
@@ -86,10 +86,10 @@ table inet dscptag {
         ip6 nexthdr tcp tcp dport $tcpbulkport ip6 dscp set cs1
 
         ## ack limit rate to about 150 pps by decimating the quantity of pure acks being sent
-        meta length < 100 tcp flags & ack == ack add @xfst_ack {ct id limit rate over 30000/second} jump drop995 
-        meta length < 100 tcp flags & ack == ack add @fast_ack {ct id limit rate over 3000/second} jump drop95
-        meta length < 100 tcp flags & ack == ack add @med_ack {ct id limit rate over 300/second} jump drop50
-        meta length < 100 tcp flags & ack == ack add @slow_ack {ct id limit rate over 300/second} jump drop50
+        meta length < 100 tcp flags & ack == ack add @xfst_ack {ct id . ct direction limit rate over 30000/second} jump drop995
+        meta length < 100 tcp flags & ack == ack add @fast_ack {ct id . ct direction limit rate over 3000/second} jump drop95
+        meta length < 100 tcp flags & ack == ack add @med_ack {ct id . ct direction limit rate over 300/second} jump drop50
+        meta length < 100 tcp flags & ack == ack add @slow_ack {ct id . ct direction limit rate over 300/second} jump drop50
         ## for almost everyone we won't send more than 150-400 acks/second
 
         ip protocol udp udp dport $vidconfports ip dscp set cs4
@@ -108,8 +108,8 @@ table inet dscptag {
         ip6 nexthdr udp ip6 saddr $lowpriolan6 ip6 dscp set cs2
 
         #downgrade udp going faster than 450 pps, probably not realtime traffic
-        ip protocol udp ip dscp > cs2 add @udp_meter {ct id limit rate over 450/second} counter ip dscp set cs2
-        ip6 nexthdr udp ip6 dscp > cs2 add @udp_meter {ct id limit rate over 450/second} counter ip6 dscp set cs2
+        ip protocol udp ip dscp > cs2 add @udp_meter {ct id . ct direction limit rate over 450/second} counter ip dscp set cs2
+        ip6 nexthdr udp ip6 dscp > cs2 add @udp_meter {ct id . ct direction limit rate over 450/second} counter ip6 dscp set cs2
 
         # down prioritize the first 500ms of tcp packets
         ip protocol tcp ct bytes < $first500ms ip dscp < cs4 ip dscp set cs2
@@ -118,8 +118,8 @@ table inet dscptag {
         ip protocol tcp ct bytes > $first10s ip dscp < cs4 ip dscp set cs1
 
         ## tcp with less than 150 pps gets upgraded to cs4
-        ip protocol tcp add @slowtcp {ct id limit rate 150/second burst 150 packets } ip dscp set cs4
-        ip6 nexthdr tcp add @slowtcp {ct id limit rate 150/second burst 150 packets} ip6 dscp set cs4
+        ip protocol tcp add @slowtcp {ct id . ct direction limit rate 150/second burst 150 packets } ip dscp set cs4
+        ip6 nexthdr tcp add @slowtcp {ct id . ct direction limit rate 150/second burst 150 packets} ip6 dscp set cs4
 
         ## classify for the HFSC queues:
         meta priority set ip dscp map @priomap
